@@ -33,7 +33,7 @@ void IRAM_ATTR handleButton2() {
 
 void configure_Radio(RF24 &radio, const byte *channels, size_t size) {
   configureNrf(radio);
-// quiet-log:   radio.printPrettyDetails();
+  radio.printPrettyDetails();
   for (size_t i = 0; i < size; i++) {
     radio.setChannel(channels[i]);
     radio.startConstCarrier(RF24_PA_MAX, channels[i]);
@@ -401,41 +401,6 @@ static void diagTickM5Shark() {
 // ===== End diagnostic patch =====
 
 
-
-static void printChannelVerify(const char* mode, byte requested) {
-  static uint32_t lastPrintMs = 0;
-  static OperationMode lastMode = current_Mode;
-  static Operation lastState = current;
-
-  uint32_t now = millis();
-  bool modeStateChanged = (lastMode != current_Mode || lastState != current);
-
-  // Print immediately on mode/state change, otherwise max once every 2000 ms.
-  if (!modeStateChanged && (now - lastPrintMs < 2000)) {
-    return;
-  }
-
-  lastPrintMs = now;
-  lastMode = current_Mode;
-  lastState = current;
-
-  Serial.print("[CHANNEL] Mode: ");
-  Serial.print(mode);
-  Serial.print(" | requested=");
-  Serial.print(requested);
-  Serial.print(" (~");
-  Serial.print(2400 + requested);
-  Serial.print(" MHz)");
-
-  Serial.print(" | A=");
-  Serial.print(RadioA.getChannel());
-  Serial.print(" B=");
-  Serial.print(RadioB.getChannel());
-  Serial.print(" C=");
-  Serial.println(RadioC.getChannel());
-}
-
-
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -498,55 +463,47 @@ void loop() {
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("BLE", channel);
     } else if (current_Mode == Bluetooth_MODULE) {
       int randomIndex = random(0, sizeof(bluetooth_channels) / sizeof(bluetooth_channels[0]));
       byte channel = bluetooth_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("Bluetooth", channel);
     } else if (current_Mode == WiFi_MODULE) {
       int randomIndex = random(0, sizeof(WiFi_channels) / sizeof(WiFi_channels[0]));
       byte channel = WiFi_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("WiFi", channel);
     } else if (current_Mode == USB_WIRELESS_MODULE) {
       int randomIndex = random(0, sizeof(usbWireless_channels) / sizeof(usbWireless_channels[0]));
       byte channel = usbWireless_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("USB Wireless", channel);
     } else if (current_Mode == VIDEO_TX_MODULE) {
       int randomIndex = random(0, sizeof(videoTransmitter_channels) / sizeof(videoTransmitter_channels[0]));
       byte channel = videoTransmitter_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("Video TX", channel);
     } else if (current_Mode == RC_MODULE) {
       int randomIndex = random(0, sizeof(rc_channels) / sizeof(rc_channels[0]));
       byte channel = rc_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("RC", channel);
     } else if (current_Mode == ZIGBEE_MODULE) {
       int randomIndex = random(0, sizeof(zigbee_channels) / sizeof(zigbee_channels[0]));
       byte channel = zigbee_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("Zigbee", channel);
     } else if (current_Mode == NRF24_MODULE) {
       int randomIndex = random(0, sizeof(nrf24_channels) / sizeof(nrf24_channels[0]));
       byte channel = nrf24_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("NRF24", channel);
     }
 }
