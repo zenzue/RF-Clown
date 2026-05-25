@@ -33,7 +33,7 @@ void IRAM_ATTR handleButton2() {
 
 void configure_Radio(RF24 &radio, const byte *channels, size_t size) {
   configureNrf(radio);
-// quiet-log:   radio.printPrettyDetails();
+  radio.printPrettyDetails();
   for (size_t i = 0; i < size; i++) {
     radio.setChannel(channels[i]);
     radio.startConstCarrier(RF24_PA_MAX, channels[i]);
@@ -42,13 +42,13 @@ void configure_Radio(RF24 &radio, const byte *channels, size_t size) {
 
 void initialize_MultiMode() {
   if (RadioA.begin()) {
-    configure_Radio(RadioA, channelGroup_1, channelGroup_1_len);
+    configure_Radio(RadioA, channelGroup_1, sizeof(channelGroup_1));
   }
   if (RadioB.begin()) {
-    configure_Radio(RadioB, channelGroup_2, channelGroup_2_len);
+    configure_Radio(RadioB, channelGroup_2, sizeof(channelGroup_2));
   }
   if (RadioC.begin()) {
-    configure_Radio(RadioC, channelGroup_3, channelGroup_3_len);
+    configure_Radio(RadioC, channelGroup_3, sizeof(channelGroup_3));
   }
 }
 
@@ -310,141 +310,7 @@ void checkMode() {
   }
 }
 
-
-// ===== M5-Shark RF-Clown diagnostic patch =====
-// Purpose: stable button polling, mode/state serial logs, and NeoPixel/status LED feedback.
-// This does not change RF power or add RF attack capability.
-
-static const char* modeNameSafe() {
-  return kMenuLabels[menuIndexFromMode(current_Mode)];
-}
-
-static void statusLed(uint8_t r, uint8_t g, uint8_t b) {
-  // If NeoPixel pin is correct, this LED should show status.
-  // If it does not light, the M5-Shark board likely uses a different NeoPixel GPIO.
-  pixels.setPixelColor(0, pixels.Color(r, g, b));
-  pixels.show();
-}
-
-static void printModeState(const char* reason) {
-  Serial.print("[RF-Clown] ");
-  Serial.print(reason);
-  Serial.print(" | Mode: ");
-  Serial.print(modeNameSafe());
-  Serial.print(" | State: ");
-  Serial.println(current == ACTIVE_MODE ? "ACTIVE" : "DEACTIVE");
-}
-
-static void pollButtonsM5Shark() {
-  static uint32_t lastEventMs = 0;
-  static int lastL = HIGH;
-  static int lastR = HIGH;
-  static int lastS = HIGH;
-
-  int nowL = digitalRead(PIN_BTN_L);
-  int nowR = digitalRead(PIN_BTN_R);
-  int nowS = digitalRead(PIN_BTN_S);
-
-  uint32_t now = millis();
-  if (now - lastEventMs < 160) {
-    lastL = nowL;
-    lastR = nowR;
-    lastS = nowS;
-    return;
-  }
-
-  // Active-low buttons with INPUT_PULLUP
-  if (lastL == HIGH && nowL == LOW) {
-    ChangeRequested = true;
-    lastEventMs = now;
-    Serial.println("[BTN] LEFT / previous mode");
-  }
-
-  if (lastR == HIGH && nowR == LOW) {
-    ChangeRequested1 = true;
-    lastEventMs = now;
-    Serial.println("[BTN] RIGHT / next mode");
-  }
-
-  if (lastS == HIGH && nowS == LOW) {
-    // SELECT should directly toggle ACTIVE/DEACTIVE in polling mode.
-    current = (current == ACTIVE_MODE) ? DEACTIVE_MODE : ACTIVE_MODE;
-    ChangeRequested2 = false;
-    lastEventMs = now;
-    Serial.println("[BTN] SELECT / active-deactive");
-  }
-
-  lastL = nowL;
-  lastR = nowR;
-  lastS = nowS;
-}
-
-static void diagTickM5Shark() {
-  static OperationMode lastMode = current_Mode;
-  static Operation lastState = current;
-
-  if (lastMode != current_Mode || lastState != current) {
-    printModeState("changed");
-
-    if (current == ACTIVE_MODE) {
-      // Green = selected mode active
-      statusLed(0, 80, 0);
-    } else {
-      // Blue = standby/deactive
-      statusLed(0, 0, 80);
-    }
-
-    lastMode = current_Mode;
-    lastState = current;
-  }
-}
-// ===== End diagnostic patch =====
-
-
-
-static void printChannelVerify(const char* mode, byte requested) {
-  static uint32_t lastPrintMs = 0;
-  static OperationMode lastMode = current_Mode;
-  static Operation lastState = current;
-
-  uint32_t now = millis();
-  bool modeStateChanged = (lastMode != current_Mode || lastState != current);
-
-  // Print immediately on mode/state change, otherwise max once every 2000 ms.
-  if (!modeStateChanged && (now - lastPrintMs < 2000)) {
-    return;
-  }
-
-  lastPrintMs = now;
-  lastMode = current_Mode;
-  lastState = current;
-
-  Serial.print("[CHANNEL] Mode: ");
-  Serial.print(mode);
-  Serial.print(" | requested=");
-  Serial.print(requested);
-  Serial.print(" (~");
-  Serial.print(2400 + requested);
-  Serial.print(" MHz)");
-
-  Serial.print(" | A=");
-  Serial.print(RadioA.getChannel());
-  Serial.print(" B=");
-  Serial.print(RadioB.getChannel());
-  Serial.print(" C=");
-  Serial.println(RadioC.getChannel());
-}
-
-
 void setup() {
-  Serial.begin(115200);
-  delay(500);
-  pixels.begin();
-  pixels.setBrightness(40);
-  statusLed(0, 0, 80);
-  Serial.println("[RF-Clown] Boot diagnostic patch active");
-  printModeState("boot");
-
   Serial.begin(115200);
   initialize_MultiMode();
   Wire.begin();
@@ -461,19 +327,16 @@ void setup() {
   pinMode(PIN_BTN_L,  INPUT_PULLUP);
   pinMode(PIN_BTN_R, INPUT_PULLUP);
   pinMode(PIN_BTN_S, INPUT_PULLUP);
-  // M5-Shark diagnostic patch: using polling instead of interrupt for LEFT button
-  // M5-Shark diagnostic patch: using polling instead of interrupt for RIGHT button
-  // M5-Shark diagnostic patch: using polling instead of interrupt for SELECT button
-
+  attachInterrupt(digitalPinToInterrupt(PIN_BTN_L),  handleButton,  FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIN_BTN_R), handleButton1, FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIN_BTN_S), handleButton2, FALLING);
   initialize_Radios();
   conf();
   update_OLED();
 }
 
 void loop() {
-  pollButtonsM5Shark();
   checkMode();
-  diagTickM5Shark();
   static Operation     lastActivity = current;
   static OperationMode lastFocus    = current_Mode;
   if (current_Mode != lastFocus) {
@@ -498,55 +361,47 @@ void loop() {
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("BLE", channel);
     } else if (current_Mode == Bluetooth_MODULE) {
       int randomIndex = random(0, sizeof(bluetooth_channels) / sizeof(bluetooth_channels[0]));
       byte channel = bluetooth_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("Bluetooth", channel);
     } else if (current_Mode == WiFi_MODULE) {
       int randomIndex = random(0, sizeof(WiFi_channels) / sizeof(WiFi_channels[0]));
       byte channel = WiFi_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("WiFi", channel);
     } else if (current_Mode == USB_WIRELESS_MODULE) {
       int randomIndex = random(0, sizeof(usbWireless_channels) / sizeof(usbWireless_channels[0]));
       byte channel = usbWireless_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("USB Wireless", channel);
     } else if (current_Mode == VIDEO_TX_MODULE) {
       int randomIndex = random(0, sizeof(videoTransmitter_channels) / sizeof(videoTransmitter_channels[0]));
       byte channel = videoTransmitter_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("Video TX", channel);
     } else if (current_Mode == RC_MODULE) {
       int randomIndex = random(0, sizeof(rc_channels) / sizeof(rc_channels[0]));
       byte channel = rc_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("RC", channel);
     } else if (current_Mode == ZIGBEE_MODULE) {
       int randomIndex = random(0, sizeof(zigbee_channels) / sizeof(zigbee_channels[0]));
       byte channel = zigbee_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("Zigbee", channel);
     } else if (current_Mode == NRF24_MODULE) {
       int randomIndex = random(0, sizeof(nrf24_channels) / sizeof(nrf24_channels[0]));
       byte channel = nrf24_channels[randomIndex];
       RadioA.setChannel(channel);
       RadioB.setChannel(channel);
       RadioC.setChannel(channel);
-      printChannelVerify("NRF24", channel);
     }
 }

@@ -35,9 +35,9 @@
 #include <string>
 #include <math.h>
 
-extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
-extern Adafruit_NeoPixel pixels;
+Adafruit_NeoPixel pixels(1, 14, NEO_GRB + NEO_KHZ800);
 
 // BLE-specific dependencies
 #include <BLEDevice.h>
@@ -70,20 +70,14 @@ static const uint8_t* FONT_MEDIUM = u8g2_font_6x12_tf;
 static const uint8_t* FONT_ICON_FALLBACK = u8g2_font_open_iconic_thing_2x_t;
 
 enum OperationMode {WiFi_MODULE, VIDEO_TX_MODULE, RC_MODULE, BLE_MODULE, Bluetooth_MODULE, USB_WIRELESS_MODULE, ZIGBEE_MODULE, NRF24_MODULE};
-extern OperationMode current_Mode;
+OperationMode current_Mode = WiFi_MODULE;
 
 enum Operation {DEACTIVE_MODE, ACTIVE_MODE};
-extern volatile Operation current;
+volatile Operation current = DEACTIVE_MODE;
 
-extern byte channelGroup_1[];
-extern byte channelGroup_2[];
-extern byte channelGroup_3[];
-
-
-
-extern const size_t channelGroup_1_len;
-extern const size_t channelGroup_2_len;
-extern const size_t channelGroup_3_len;
+byte channelGroup_1[] = {2, 5, 8, 11};
+byte channelGroup_2[] = {26, 29, 32, 35};
+byte channelGroup_3[] = {80, 83, 86, 89};
 
 const byte bluetooth_channels[] =        {32, 34, 46, 48, 50, 52, 0, 1, 2, 4, 6, 8, 22, 24, 26, 28, 30, 74, 76, 78, 80};
 const byte ble_channels[]       =        {2, 26, 80};
@@ -94,11 +88,11 @@ const byte rc_channels[]        =        {1, 3, 5, 7};
 const byte zigbee_channels[]    =        {11, 15, 20, 25};
 const byte nrf24_channels[]     =        {76, 78, 79};
 
-extern volatile bool ChangeRequested;
-extern volatile bool ChangeRequested1;
-extern volatile bool ChangeRequested2;
+volatile bool ChangeRequested  = false;
+volatile bool ChangeRequested1 = false;
+volatile bool ChangeRequested2 = false;
 
-extern unsigned long lastPressTime;
+unsigned long lastPressTime = 0;
 const unsigned long debounceDelay = 200;
 
 #endif // CONFIG_H
